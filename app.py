@@ -195,8 +195,6 @@ HTML_SAYFA = """
 
   <div class="kart">
     <div class="ust-ikon">🌹</div>
-    <h2>Sana Bir Şey Söylemek İstiyorum</h2>
-    <p class="alt">Sözcüklerin güvende, kalbinden geliyor olsun yeter.</p>
     <form method="POST" action="/mesaj">
       <textarea name="mesaj" placeholder="Kalbindekini buraya döküver..." required>{{ onceki_mesaj }}</textarea>
       <button type="submit">💌 &nbsp;Gönder</button>
