@@ -317,6 +317,7 @@ def foto_listesi():
 
 @app.route("/")
 def ana_sayfa():
+    bildirim_gonder("👀 Biri sayfana girdi!")
     return render_template_string(HTML_SAYFA, basarili=False, hata=False, onceki_mesaj="")
 
 
