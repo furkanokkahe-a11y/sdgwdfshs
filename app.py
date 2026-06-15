@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, redirect, request, render_template_string
+from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory
 
 app = Flask(__name__)
 
@@ -28,6 +28,40 @@ HTML_SAYFA = """
       font-family: 'Lato', sans-serif;
       overflow: hidden;
       position: relative;
+    }
+    }
+
+    /* Fotoğraf slideshow arka plan */
+    #slideshow {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    .slayt {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 1.8s ease-in-out;
+      animation: kenBurns 12s ease-in-out infinite alternate;
+    }
+    .slayt.aktif { opacity: 1; }
+    @keyframes kenBurns {
+      0%   { transform: scale(1)    translate(0, 0); }
+      100% { transform: scale(1.08) translate(-1%, -1%); }
+    }
+    /* Koyu romantik overlay */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(15,4,8,0.55) 0%,
+        rgba(15,4,8,0.45) 50%,
+        rgba(15,4,8,0.65) 100%
+      );
+      z-index: 0;
     }
 
     /* Yüzen kalpler */
@@ -190,6 +224,10 @@ HTML_SAYFA = """
 </head>
 <body>
 
+  <!-- Fotoğraf slideshow -->
+  <div id="slideshow"></div>
+  <div id="overlay"></div>
+
   <!-- Yüzen kalpler -->
   <div class="kalpler" id="kalpler"></div>
 
@@ -206,6 +244,27 @@ HTML_SAYFA = """
   </div>
 
   <script>
+    // Fotoğraf slideshow
+    fetch('/api/fotos')
+      .then(r => r.json())
+      .then(fotos => {
+        if (!fotos.length) return;
+        const ss = document.getElementById('slideshow');
+        const divler = fotos.map((f, i) => {
+          const d = document.createElement('div');
+          d.className = 'slayt' + (i === 0 ? ' aktif' : '');
+          d.style.backgroundImage = `url('/static/photos/${f}')`;
+          ss.appendChild(d);
+          return d;
+        });
+        let mevcut = 0;
+        setInterval(() => {
+          divler[mevcut].classList.remove('aktif');
+          mevcut = (mevcut + 1) % divler.length;
+          divler[mevcut].classList.add('aktif');
+        }, 5000);
+      });
+
     const emojiler = ['❤️','🌹','💕','✨','🌸','💫','🥀','💗'];
     const kont = document.getElementById('kalpler');
     function kalp_ekle() {
@@ -240,6 +299,20 @@ def bildirim_gonder(mesaj):
     except Exception as e:
         print("Bildirim gönderilemedi:", e)
         return False
+
+
+@app.route("/api/fotos")
+def foto_listesi():
+    klasor = os.path.join(app.root_path, 'static', 'photos')
+    uzantilar = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+    try:
+        dosyalar = [
+            f for f in os.listdir(klasor)
+            if os.path.splitext(f)[1].lower() in uzantilar
+        ]
+    except Exception:
+        dosyalar = []
+    return jsonify(dosyalar)
 
 
 @app.route("/")
