@@ -195,6 +195,7 @@ HTML_SAYFA = """
 
   <div class="kart">
     <div class="ust-ikon">🌹</div>
+    <h2>Nasılsın yavrum? Hazır mısın? İyi misin?</h2>
     <form method="POST" action="/mesaj">
       <textarea name="mesaj" placeholder="Kalbindekini buraya döküver..." required>{{ onceki_mesaj }}</textarea>
       <button type="submit">💌 &nbsp;Gönder</button>
