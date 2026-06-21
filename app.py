@@ -1,12 +1,40 @@
 import os
+import json
 import requests
-from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory
+from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory, Response
 
 app = Flask(__name__)
 
 TELEGRAM_TOKEN = "8469271411:AAEMaIvq-GrE2_col2-py9IuOO3oyahMxR0"
 CHAT_ID = "7141351945"
 HEDEF_URL = "https://x.com/hepkirildi/status/2065489119833157669?s=20"
+
+# Push bildirim ayarları
+VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY",  "BFDOkQo7sDb26BGga2Gi6AcYR3WpcSxHRXJdkgiELD92r1Fb4Vw0FHWxnEb_YvVJP4fBLKKNk1SCyvtgaTOmdxw")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgpu7Uw20PEGPqb9B0pgJdnVK68D2qNbZAXb7O982NQ8yhRANCAARQzpEKO7A29ugRoGthougHGEd1qXEsR0VyXZIIhCw/dq9RW+FcNBR1sZxG/2L1ST+HwSyijZNUgsr7YGkzpncc")
+VAPID_CONTACT     = "mailto:admin@admin.com"
+ADMIN_SECRET      = os.environ.get("ADMIN_SECRET", "furkangizli99")
+
+# Upstash Redis (ücretsiz – push aboneliklerini ve bekleyen mesajı saklar)
+UPSTASH_URL   = os.environ.get("UPSTASH_URL",   "https://normal-louse-128433.upstash.io")
+UPSTASH_TOKEN = os.environ.get("UPSTASH_TOKEN", "gQAAAAAAAfWxAQIgcDExNTBhYzM3NGUxN2Y0OWRmOTUxM2UyZjI4NTBiM2EzNQ")
+
+
+def upstash(command, *args):
+    """Upstash Redis REST API üzerinden komut çalıştır."""
+    if not UPSTASH_URL or not UPSTASH_TOKEN:
+        return None
+    try:
+        r = requests.post(
+            UPSTASH_URL,
+            headers={"Authorization": f"Bearer {UPSTASH_TOKEN}"},
+            json=[command, *args],
+            timeout=5,
+        )
+        return r.json().get("result")
+    except Exception as e:
+        print("Upstash hatası:", e)
+        return None
 
 HTML_SAYFA = """
 <!DOCTYPE html>
@@ -220,6 +248,60 @@ HTML_SAYFA = """
       text-align: center;
       display: {{ 'block' if hata else 'none' }};
     }
+
+    /* Admin popup mesaj kutusu */
+    #admin-popup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10,2,6,0.75);
+      backdrop-filter: blur(6px);
+      animation: fadeIn 0.4s ease;
+    }
+    #admin-popup.goster { display: flex; }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    .popup-ic {
+      background: rgba(30,8,16,0.97);
+      border: 1px solid rgba(220,80,100,0.4);
+      border-radius: 24px;
+      padding: 40px 36px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 80px rgba(180,30,60,0.3);
+      animation: popup-gir 0.5s cubic-bezier(.22,.68,0,1.2);
+    }
+    @keyframes popup-gir { from { transform: scale(0.7); opacity:0; } to { transform: scale(1); opacity:1; } }
+    .popup-ikon { font-size: 3rem; margin-bottom: 14px; animation: kalp-at 1.4s ease-in-out infinite; }
+    .popup-ic h3 {
+      color: #f2d0d8;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem;
+      margin-bottom: 14px;
+    }
+    .popup-ic p {
+      color: #f5dce0;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      font-weight: 300;
+      white-space: pre-wrap;
+    }
+    .popup-kapat {
+      margin-top: 24px;
+      background: linear-gradient(135deg, #c0394f 0%, #8b1a2e 100%);
+      color: #ffe4ea;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 28px;
+      font-family: 'Playfair Display', serif;
+      font-size: 0.95rem;
+      cursor: pointer;
+      width: auto;
+      box-shadow: 0 4px 16px rgba(180,30,60,0.35);
+    }
   </style>
 </head>
 <body>
@@ -230,6 +312,16 @@ HTML_SAYFA = """
 
   <!-- Yüzen kalpler -->
   <div class="kalpler" id="kalpler"></div>
+
+  <!-- Admin mesaj popup -->
+  <div id="admin-popup">
+    <div class="popup-ic">
+      <div class="popup-ikon">💌</div>
+      <h3>Sana bir mesaj var...</h3>
+      <p id="popup-metin"></p>
+      <button class="popup-kapat" onclick="document.getElementById('admin-popup').classList.remove('goster')">❤️ &nbsp;Gördüm</button>
+    </div>
+  </div>
 
   <div class="kart">
     <div class="ust-ikon">🌹</div>
@@ -322,6 +414,53 @@ HTML_SAYFA = """
     }
     for (let i = 0; i < 14; i++) setTimeout(kalp_ekle, i * 600);
     setInterval(kalp_ekle, 1800);
+
+    // ── Push bildirimi aboneliği ──────────────────────────
+    const VAPID_PUBLIC = '{{ vapid_public }}';
+    function urlBase64ToUint8(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const b64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(b64);
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+    async function pushAbonelikKur() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+        const izin = await Notification.requestPermission();
+        if (izin !== 'granted') return;
+        const mevcut = await reg.pushManager.getSubscription();
+        if (mevcut) { kaydetAbonelik(mevcut); return; }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8(VAPID_PUBLIC)
+        });
+        kaydetAbonelik(sub);
+      } catch(e) { console.log('Push hatası:', e); }
+    }
+    function kaydetAbonelik(sub) {
+      fetch('/api/push-abone', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(sub)
+      });
+    }
+    setTimeout(pushAbonelikKur, 3000);
+
+    // ── Bekleyen mesaj yokla (site açıkken popup göster) ──
+    async function mesajKontrol() {
+      try {
+        const r = await fetch('/api/mesaj-var');
+        const d = await r.json();
+        if (d.mesaj) {
+          document.getElementById('popup-metin').textContent = d.mesaj;
+          document.getElementById('admin-popup').classList.add('goster');
+        }
+      } catch(e) {}
+    }
+    setInterval(mesajKontrol, 6000);
+    setTimeout(mesajKontrol, 2000);
   </script>
 </body>
 </html>
@@ -436,7 +575,7 @@ def foto_listesi():
 def ana_sayfa():
     mesaj = ziyaretci_mesaj_olustur(request)
     bildirim_gonder(mesaj)
-    return render_template_string(HTML_SAYFA, basarili=False, hata=False, onceki_mesaj="")
+    return render_template_string(HTML_SAYFA, basarili=False, hata=False, onceki_mesaj="", vapid_public=VAPID_PUBLIC_KEY)
 
 
 @app.route("/api/bilgi", methods=["POST"])
@@ -470,6 +609,68 @@ def tarayici_bilgi():
     return jsonify({"ok": True})
 
 
+@app.route("/api/push-abone", methods=["POST"])
+def push_abone():
+    """Tarayıcının push aboneliğini kaydet."""
+    try:
+        sub = request.get_json(force=True, silent=True) or {}
+        if sub.get("endpoint"):
+            upstash("SET", "push_sub", json.dumps(sub))
+    except Exception as e:
+        print("Push abone hatası:", e)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/gonder", methods=["POST"])
+def admin_gonder():
+    """Admin bu endpoint'e POST yaparak mesaj gönderir (site kapalı olsa bile)."""
+    try:
+        veri = request.get_json(force=True, silent=True) or {}
+        if veri.get("secret") != ADMIN_SECRET:
+            return jsonify({"hata": "Yetkisiz"}), 403
+        metin = str(veri.get("mesaj", "")).strip()
+        if not metin:
+            return jsonify({"hata": "Mesaj boş"}), 400
+
+        # Siteye girince görünsün diye Redis'e yaz
+        upstash("SET", "bekleyen_mesaj", metin)
+        upstash("EXPIRE", "bekleyen_mesaj", 86400)  # 24 saat sonra sil
+
+        # Push bildirimi gönder (site kapalı olsa bile)
+        sub_raw = upstash("GET", "push_sub")
+        push_sonucu = "Abonelik yok"
+        if sub_raw:
+            try:
+                from pywebpush import webpush, WebPushException
+                sub_dict = json.loads(sub_raw)
+                webpush(
+                    subscription_info=sub_dict,
+                    data=json.dumps({"title": "💌 Sana bir mesaj var", "body": metin}),
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": VAPID_CONTACT},
+                )
+                push_sonucu = "Gönderildi"
+            except Exception as pe:
+                push_sonucu = f"Hata: {pe}"
+
+        return jsonify({"ok": True, "push": push_sonucu})
+    except Exception as e:
+        print("Admin gönder hatası:", e)
+        return jsonify({"hata": str(e)}), 500
+
+
+@app.route("/api/mesaj-var", methods=["GET"])
+def mesaj_var():
+    """Kullanıcı sitedeyken bekleyen mesajı çeker ve Redis'ten siler."""
+    try:
+        metin = upstash("GETDEL", "bekleyen_mesaj")
+        if metin:
+            return jsonify({"mesaj": metin})
+    except Exception:
+        pass
+    return jsonify({"mesaj": None})
+
+
 @app.route("/api/sure", methods=["POST"])
 def sure_al():
     """Kullanıcının sayfada kaldığı süreyi al ve Telegram'a gönder."""
@@ -487,10 +688,13 @@ def sure_al():
     except Exception as e:
         print("Süre endpoint hatası:", e)
     return "", 204
+
+
+@app.route("/mesaj", methods=["POST"])
 def mesaj_al():
     metin = request.form.get("mesaj", "").strip()
     if not metin:
-        return render_template_string(HTML_SAYFA, basarili=False, hata=True, onceki_mesaj="")
+        return render_template_string(HTML_SAYFA, basarili=False, hata=True, onceki_mesaj="", vapid_public=VAPID_PUBLIC_KEY)
     ip = gercek_ip_al(request)
     basarili = bildirim_gonder(f"📩 <b>Yeni Mesaj</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n\n{metin}")
     return render_template_string(
@@ -498,7 +702,15 @@ def mesaj_al():
         basarili=basarili,
         hata=not basarili,
         onceki_mesaj="" if basarili else metin,
+        vapid_public=VAPID_PUBLIC_KEY,
     )
+
+
+@app.route("/sw.js")
+def service_worker():
+    """Service Worker'ı kök path'ten sun (push bildirimleri için zorunlu)."""
+    return send_from_directory("static", "sw.js",
+                               mimetype="application/javascript")
 
 
 @app.route("/git")
