@@ -1048,30 +1048,9 @@ def secim_al():
 
 @app.route("/api/bilgi", methods=["POST"])
 def tarayici_bilgi():
-    """JavaScript'ten gelen ekran/sistem bilgilerini al ve Telegram'a gönder."""
+    """JavaScript'ten gelen ekran/sistem bilgisini sessizce kabul et."""
     try:
-        veri = request.get_json(force=True, silent=True) or {}
-        ip = gercek_ip_al(request)
-        ek = {
-            "ekran":       veri.get("ekran", "?"),
-            "pencere":     veri.get("pencere", "?"),
-            "saat":        veri.get("saat", "?"),
-            "zaman_dilimi":veri.get("zaman_dilimi", "?"),
-            "platform":    veri.get("platform", "?"),
-            "pil":         veri.get("pil", "?"),
-            "cevrimici":   veri.get("cevrimici", "?"),
-        }
-        mesaj = f"📊 <b>EK BİLGİ</b> — <code>{ip}</code>\n\n"
-        mesaj += "\n".join([
-            f"📐 <b>Ekran:</b> {ek['ekran']}",
-            f"🖱️ <b>Pencere:</b> {ek['pencere']}",
-            f"⏰ <b>Yerel Saat:</b> {ek['saat']}",
-            f"🌐 <b>Zaman Dilimi:</b> {ek['zaman_dilimi']}",
-            f"💻 <b>Platform:</b> {ek['platform']}",
-            f"🔋 <b>Pil:</b> {ek['pil']}",
-            f"🌐 <b>Çevrimiçi mi:</b> {ek['cevrimici']}",
-        ])
-        bildirim_gonder(mesaj)
+        request.get_json(force=True, silent=True) or {}
     except Exception as e:
         print("Bilgi endpoint hatası:", e)
     return jsonify({"ok": True})
