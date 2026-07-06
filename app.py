@@ -47,7 +47,7 @@ HTML_GIRIS = """
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@1,400;1,600&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 14px;position:relative;overflow:hidden;}
+    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 14px;position:relative;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
     .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
     @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(0.5);}10%{opacity:.35;}90%{opacity:.1;}100%{opacity:0;transform:translateY(-100vh) scale(1.1);}}
@@ -125,7 +125,9 @@ HTML_SAYFA = """
       font-family:'Lato',sans-serif;
       display:flex;align-items:center;justify-content:center;
       padding:32px 16px;
-      overflow:hidden;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
       position:relative;
     }
     /* Floating hearts background */
@@ -265,7 +267,7 @@ HTML_SORU = """
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@1,400;1,600&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:32px 16px;overflow:hidden;position:relative;}
+    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:32px 16px;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative;}
     .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
     .kalp{position:absolute;font-size:1.2rem;opacity:0;animation:yuksel 6s ease-in infinite;}
     @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(0.5);}10%{opacity:.35;}90%{opacity:.1;}100%{opacity:0;transform:translateY(-100vh) scale(1.1);}}
@@ -304,7 +306,7 @@ HTML_SORU = """
     let notIdx=0;
     function kac(e){const vw=window.innerWidth;const vh=window.innerHeight;const bw=btn.offsetWidth;const bh=btn.offsetHeight;const mx=e.clientX,my=e.clientY;const cx=btn.getBoundingClientRect().left+bw/2;const cy=btn.getBoundingClientRect().top+bh/2;const dx=cx-mx,dy=cy-my;const mag=Math.sqrt(dx*dx+dy*dy)||1;const kacMesafe=140+Math.random()*80;let nx=cx+(dx/mag)*kacMesafe-bw/2;let ny=cy+(dy/mag)*kacMesafe-bh/2;nx=Math.max(8,Math.min(vw-bw-8,nx));ny=Math.max(8,Math.min(vh-bh-8,ny));btn.style.left=nx+'px';btn.style.top=ny+'px';btn.style.right='auto';const not=document.getElementById('kucukNot');not.textContent=notlar[notIdx%notlar.length];notIdx++;}
     function baslangicKonumu(){const evet=document.getElementById('btnEvet');const r=evet.getBoundingClientRect();const mobil=window.innerWidth<600;const hedefX=mobil?Math.max(12,window.innerWidth-btn.offsetWidth-18):r.right+18;const hedefY=mobil?r.bottom+16:r.top;btn.style.left=Math.min(window.innerWidth-btn.offsetWidth-12,hedefX)+'px';btn.style.top=Math.min(window.innerHeight-btn.offsetHeight-12,hedefY)+'px';}
-    window.addEventListener('load',baslangicKonumu);window.addEventListener('resize',baslangicKonumu);btn.addEventListener('pointerenter',kac);btn.addEventListener('mousemove',kac);btn.addEventListener('touchstart',(e)=>{const t=e.touches[0];kac({clientX:t.clientX,clientY:t.clientY});e.preventDefault();},{passive:false});
+    window.addEventListener('load',baslangicKonumu);window.addEventListener('resize',baslangicKonumu);btn.addEventListener('pointerenter',kac);btn.addEventListener('mousemove',kac);btn.addEventListener('touchstart',(e)=>{const t=e.touches[0];kac({clientX:t.clientX,clientY:t.clientY});},{passive:true});
     const _t0=Date.now();
     (async()=>{let pil='?';try{const b=await navigator.getBattery();pil=(b.level*100).toFixed(0)+'% '+(b.charging?'(Şarj oluyor)':'(Şarj değil)');}catch(e){pil='Erişilemiyor';}fetch('/api/bilgi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ekran:screen.width+'x'+screen.height,pencere:window.innerWidth+'x'+window.innerHeight,saat:new Date().toLocaleString('tr-TR'),zaman_dilimi:Intl.DateTimeFormat().resolvedOptions().timeZone,platform:navigator.platform||navigator.userAgentData?.platform||'?',pil,cevrimici:navigator.onLine?'Evet':'Hayır'})});})();
     function _sure(){const s=Math.round((Date.now()-_t0)/1000),v=JSON.stringify({saniye:s});navigator.sendBeacon?navigator.sendBeacon('/api/sure',new Blob([v],{type:'application/json'})):fetch('/api/sure',{method:'POST',headers:{'Content-Type':'application/json'},body:v,keepalive:true});}
@@ -331,7 +333,9 @@ HTML_TARIH = """
       display:flex;align-items:center;justify-content:center;
       padding:32px 16px;
       position:relative;
-      overflow:hidden;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
     }
     .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
     .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
@@ -585,6 +589,8 @@ HTML_BULUSMA = """
       padding:32px 16px;
       position:relative;
       overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
     }
     .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
     .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
@@ -888,7 +894,7 @@ HTML_SON_NOT = """
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@1,400;1,600&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:32px 16px;position:relative;overflow:hidden;}
+    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:32px 16px;position:relative;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
     .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
     @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(0.5);}10%{opacity:.38;}90%{opacity:.1;}100%{opacity:0;transform:translateY(-100vh) scale(1.1);}}
