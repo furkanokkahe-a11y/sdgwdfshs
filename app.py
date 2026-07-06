@@ -1,9 +1,10 @@
 import os
 import json
 import requests
-from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory, Response
+from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory, Response, session
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "mart-on-iki-giris")
 
 TELEGRAM_TOKEN = "8469271411:AAEMaIvq-GrE2_col2-py9IuOO3oyahMxR0"
 CHAT_ID = "7141351945"
@@ -35,6 +36,78 @@ def upstash(command, *args):
     except Exception as e:
         print("Upstash hatası:", e)
         return None
+
+HTML_GIRIS = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>giriş</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@1,400;1,600&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 14px;position:relative;overflow:hidden;}
+    .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+    .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
+    @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(0.5);}10%{opacity:.35;}90%{opacity:.1;}100%{opacity:0;transform:translateY(-100vh) scale(1.1);}}
+    .kart{position:relative;z-index:1;max-width:520px;width:100%;background:rgba(28,6,14,.92);border:1px solid rgba(220,80,100,.22);border-radius:24px;padding:40px 24px 30px;backdrop-filter:blur(14px);box-shadow:0 12px 60px rgba(0,0,0,.65);text-align:center;}
+    .emoji-ust{font-size:2.4rem;display:block;margin-bottom:14px;animation:nabiz 2.2s ease-in-out infinite;}
+    @keyframes nabiz{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
+    .baslik{font-family:'Playfair Display',serif;font-style:italic;font-size:1.58rem;color:#f0d0d8;line-height:1.4;margin-bottom:10px;}
+    .alt-yazi{color:#9f7b84;font-size:.9rem;line-height:1.65;font-weight:300;margin-bottom:24px;}
+    form{display:flex;flex-direction:column;gap:14px;}
+    .secim-grup{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    select{width:100%;border:none;border-radius:16px;padding:15px 16px;background:#f8e9ee;color:#35141f;font-size:1rem;font-family:'Lato',sans-serif;outline:none;appearance:none;}
+    select:focus{box-shadow:0 0 0 2px rgba(201,64,96,.35);}
+    .giris-btn{width:100%;border:none;border-radius:50px;padding:15px 24px;background:linear-gradient(135deg,#c94060,#e8607a);color:#fff;font-size:1rem;font-family:'Lato',sans-serif;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(200,60,90,.4);transition:transform .15s,box-shadow .15s;letter-spacing:.04em;}
+    .giris-btn:hover{transform:scale(1.03);box-shadow:0 6px 28px rgba(200,60,90,.55);}
+    .hata{min-height:18px;color:#e09aa8;font-size:.83rem;line-height:1.5;}
+    @media (max-width:600px){.kart{padding:34px 18px 24px;border-radius:20px;}.emoji-ust{font-size:2rem;}.baslik{font-size:1.34rem;line-height:1.32;}.alt-yazi{font-size:.84rem;margin-bottom:20px;}.secim-grup{grid-template-columns:1fr;}.giris-btn{padding:15px 20px;}}
+  </style>
+</head>
+<body>
+  <div class="kalpler" id="kalpler"></div>
+  <div class="kart">
+    <span class="emoji-ust">🔐</span>
+    <p class="baslik">önce şifreyi bilmen lazım</p>
+    <p class="alt-yazi">günü ve ayı seçip giriş yap.</p>
+    <form method="post">
+      <div class="secim-grup">
+        <select name="gun" required>
+          <option value="">gün seç</option>
+          {% for gun in gunler %}
+          <option value="{{ gun }}">{{ gun }}</option>
+          {% endfor %}
+        </select>
+        <select name="ay" required>
+          <option value="">ay seç</option>
+          <option value="ocak">ocak</option>
+          <option value="subat">şubat</option>
+          <option value="mart">mart</option>
+          <option value="nisan">nisan</option>
+          <option value="mayis">mayıs</option>
+          <option value="haziran">haziran</option>
+          <option value="temmuz">temmuz</option>
+          <option value="agustos">ağustos</option>
+          <option value="eylul">eylül</option>
+          <option value="ekim">ekim</option>
+          <option value="kasim">kasım</option>
+          <option value="aralik">aralık</option>
+        </select>
+      </div>
+      <button class="giris-btn" type="submit">giriş yap</button>
+      <p class="hata">{{ hata or '' }}</p>
+    </form>
+  </div>
+  <script>
+    const kalpDiv=document.getElementById('kalpler');
+    const emojiler=['🌸','💗','✨','🌷','💖','🫧','🌹','💝'];
+    for(let i=0;i<22;i++){const el=document.createElement('span');el.className='kalp';el.textContent=emojiler[Math.floor(Math.random()*emojiler.length)];el.style.left=Math.random()*100+'%';el.style.animationDelay=Math.random()*8+'s';el.style.animationDuration=(5+Math.random()*5)+'s';el.style.fontSize=(.7+Math.random()*.8)+'rem';kalpDiv.appendChild(el);}
+  </script>
+</body>
+</html>
+"""
 
 HTML_SAYFA = """
 <!DOCTYPE html>
@@ -948,6 +1021,22 @@ def ziyaretci_mesaj_olustur(req, ek_bilgi=None):
     return "\n".join(satirlar)
 
 
+def erisim_var_mi():
+    return session.get("site_giris_ok") is True
+
+
+def sayfa_koruma():
+    if not erisim_var_mi():
+        return redirect("/")
+    return None
+
+
+def api_koruma():
+    if not erisim_var_mi():
+        return jsonify({"ok": False, "hata": "Yetkisiz"}), 403
+    return None
+
+
 @app.route("/api/fotos")
 def foto_listesi():
     klasor = os.path.join(app.root_path, 'static', 'photos')
@@ -962,8 +1051,20 @@ def foto_listesi():
     return jsonify(dosyalar)
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def ana_sayfa():
+    hata = None
+    if request.method == "POST":
+        gun = str(request.form.get("gun", "")).strip()
+        ay = str(request.form.get("ay", "")).strip().lower()
+        if gun == "12" and ay == "mart":
+            session["site_giris_ok"] = True
+            return redirect("/")
+        hata = "şifre doğru değil."
+
+    if not erisim_var_mi():
+        return render_template_string(HTML_GIRIS, hata=hata, gunler=range(1, 32))
+
     mesaj = ziyaretci_mesaj_olustur(request)
     bildirim_gonder(mesaj)
     return render_template_string(HTML_SAYFA)
@@ -971,6 +1072,10 @@ def ana_sayfa():
 
 @app.route("/bulusma")
 def bulusma_sayfasi():
+  koruma = sayfa_koruma()
+  if koruma:
+    return koruma
+
   from datetime import date
 
   bugun = date.today()
@@ -986,22 +1091,35 @@ def bulusma_sayfasi():
 
 @app.route("/bulusma/aktiviteler")
 def aktiviteler_sayfasi():
+  koruma = sayfa_koruma()
+  if koruma:
+    return koruma
   return render_template_string(HTML_BULUSMA)
 
 
 @app.route("/soru")
 def soru_sayfasi():
+  koruma = sayfa_koruma()
+  if koruma:
+    return koruma
   return render_template_string(HTML_SORU)
 
 
 @app.route("/son-not")
 def son_not_sayfasi():
+  koruma = sayfa_koruma()
+  if koruma:
+    return koruma
   return render_template_string(HTML_SON_NOT)
 
 
 @app.route("/api/tarih-secim", methods=["POST"])
 def tarih_secim_al():
   """Tarih seçim ekranından gelen izin gününü Telegram'a ilet."""
+  api_engel = api_koruma()
+  if api_engel:
+    return api_engel
+
   from datetime import date
 
   try:
@@ -1031,6 +1149,10 @@ def tarih_secim_al():
 @app.route("/api/secim", methods=["POST"])
 def secim_al():
     """İkinci sayfadan gelen aktivite seçimlerini Telegram'a ilet."""
+    api_engel = api_koruma()
+    if api_engel:
+        return api_engel
+
     try:
         veri = request.get_json(force=True, silent=True) or {}
         secimler = str(veri.get("secimler", "?")).strip()
@@ -1048,17 +1170,25 @@ def secim_al():
 
 @app.route("/api/bilgi", methods=["POST"])
 def tarayici_bilgi():
-    """JavaScript'ten gelen ekran/sistem bilgisini sessizce kabul et."""
-    try:
-        request.get_json(force=True, silent=True) or {}
-    except Exception as e:
-        print("Bilgi endpoint hatası:", e)
-    return jsonify({"ok": True})
+  """JavaScript'ten gelen ekran/sistem bilgisini sessizce kabul et."""
+  api_engel = api_koruma()
+  if api_engel:
+    return api_engel
+
+  try:
+    request.get_json(force=True, silent=True) or {}
+  except Exception as e:
+    print("Bilgi endpoint hatası:", e)
+  return jsonify({"ok": True})
 
 
 @app.route("/api/push-abone", methods=["POST"])
 def push_abone():
     """Tarayıcının push aboneliğini kaydet."""
+    api_engel = api_koruma()
+    if api_engel:
+        return api_engel
+
     try:
         sub = request.get_json(force=True, silent=True) or {}
         if sub.get("endpoint"):
