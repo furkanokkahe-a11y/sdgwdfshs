@@ -96,9 +96,6 @@ HTML_GIRIS = """
     <div class="icerik">
       <div class="sol-alan">
         <div class="rozet">💗</div>
-        <p class="baslik">bu kapı biraz kalpten açılıyor</p>
-        <p class="alt-yazi">doğru günü ve ayı seç, sana hazırlanan küçük dünyanın içine öyle gir.</p>
-        <div class="mini-not">minik bir şifre, biraz heyecan ve bolca romantik enerji. doğru tarihi bilen içeri buyursun.</div>
       </div>
       <form method="post">
         <p class="form-etiket">şifreyi hatırla</p>
