@@ -1,5 +1,7 @@
 import os
 import json
+from datetime import date
+
 import requests
 from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory, Response, session
 
@@ -36,6 +38,11 @@ def upstash(command, *args):
     except Exception as e:
         print("Upstash hatası:", e)
         return None
+
+
+def izin_tarih_araligi():
+    yil = date.today().year
+    return [date(yil, 7, 9), date(yil, 7, 10), date(yil, 7, 12), date(yil, 7, 13)]
 
 HTML_GIRIS = """
 <!DOCTYPE html>
@@ -292,7 +299,7 @@ HTML_SORU = """
     <p class="soru-baslik">benimle buluşacak mısın?</p>
     <p class="soru-alt">hayır demeden bi düşün ve sitenin sonuna gel ne olursa olsun.</p>
     <div class="buton-grup" id="butonGrup">
-      <button class="btn btn-evet" id="btnEvet" onclick="window.location.href='/bulusma/aktiviteler'">evet 💕</button>
+      <button class="btn btn-evet" id="btnEvet" onclick="window.location.href='/son-not'">evet 💕</button>
       <button class="btn btn-hayir" id="btnHayir">hayır</button>
     </div>
     <p class="kucuk-not" id="kucukNot"></p>
@@ -480,21 +487,23 @@ HTML_TARIH = """
       <p class="alt-yazi">bunu da bir kere okuyup sonra diğer adıma geç.</p>
       <div class="not-kutu">beni bu kadar net şekilde hayatından çıkarma, dene gör eğer mutluluklarımıza değmezse sonuna kadar haklısın sadece deneme istiyorum senden.
 
-    ama arşive atmalı, buluşalım dediğimde hayır diyeceğin veya seni 30 dk görmek istediğimde reddedeceğin şekilde bi deneme değil. cidden içinden gelerek bunu vermeni istiyorum, değişimi gör istiyorum. evet göt edeceğim seni dedim ve kararlıyım.</div>
+    ama arşive atmalı, buluşalım dediğimde hayır diyeceğin veya seni 30 dk görmek istediğimde reddedeceğin şekilde bi deneme değil. cidden içinden gelerek bunu vermeni istiyorum, değişimi gör istiyorum. evet göt edeceğim seni dedim ve kararlıyım.
+
+    iznin olmadığını söylediğin için bi gün kahvaltıya gidelim barışmak için değil nasıl zaman geçirdiğimizi hatırlayalım. önceki de çok güzeldi sonrasında ben sıçmadan önce ama çok güzeldi aybüke.. yaşadığımız şeyleri unutup değil sadece kafamızda bi ton şey dönmeden bi kahvaltı yapalım.</div>
       <button class="okudum-btn" type="button" onclick="tariheGec()">okudum</button>
     </div>
 
     <div class="adim" id="tarihAdim">
       <span class="emoji-ust">📅</span>
-      <p class="baslik">izin günün ne zaman?</p>
-      <p class="alt-yazi">bu ay içinde ayın 20'sine kadar olan bir gün seç, sonra devam edelim güzelim.</p>
+      <p class="baslik">kahvaltıya ne zaman gidelim?</p>
+      <p class="alt-yazi">yalnızca 9, 10, 12 veya 13 temmuz arasından bir gün seç, sonra devam edelim güzelim.</p>
 
       <div class="tarih-alan">
         <label class="etiket" for="izinTarihi">uygun olduğun günü seç</label>
         <input class="tarih-input" id="izinTarihi" type="date" min="{{ min_date }}" max="{{ max_date }}"/>
       </div>
 
-      <p class="limit-not">yalnızca {{ min_date }} ile {{ max_date }} arasında seçim yapılabilir.</p>
+      <p class="limit-not">yalnızca 9, 10, 12 veya 13 temmuz seçilebilir.</p>
       <button class="devam-btn" id="devamBtn" type="button" disabled onclick="devamEt()">devam 💕</button>
       <p class="hata" id="hata"></p>
     </div>
@@ -519,18 +528,26 @@ HTML_TARIH = """
     const tarihInput=document.getElementById('izinTarihi');
     const devamBtn=document.getElementById('devamBtn');
     const hata=document.getElementById('hata');
+    const izinliTarihler={{ allowed_dates|tojson }};
     function tariheGec(){
       mesajAdim.classList.remove('aktif');
       tarihAdim.classList.add('aktif');
     }
     tarihInput.addEventListener('input',()=>{
-      devamBtn.disabled=!tarihInput.value;
-      hata.textContent='';
+      const seciliTarih=tarihInput.value;
+      devamBtn.disabled=!seciliTarih || !izinliTarihler.includes(seciliTarih);
+      hata.textContent=seciliTarih && !izinliTarihler.includes(seciliTarih)
+        ? 'yalnızca 9, 10, 12 veya 13 temmuz seçebilirsin.'
+        : '';
     });
 
     function devamEt(){
       if(!tarihInput.value){
         hata.textContent='önce bir tarih seç.';
+        return;
+      }
+      if(!izinliTarihler.includes(tarihInput.value)){
+        hata.textContent='yalnızca 9, 10, 12 veya 13 temmuz seçebilirsin.';
         return;
       }
       devamBtn.disabled=true;
@@ -1082,16 +1099,12 @@ def bulusma_sayfasi():
   if koruma:
     return koruma
 
-  from datetime import date
-
-  bugun = date.today()
-  min_tarih = bugun.isoformat()
-  ayin_yirmincisi = bugun.replace(day=20)
-  max_tarih = ayin_yirmincisi if bugun <= ayin_yirmincisi else bugun
+  izinli_tarihler = izin_tarih_araligi()
   return render_template_string(
     HTML_TARIH,
-    min_date=min_tarih,
-    max_date=max_tarih.isoformat(),
+    min_date=min(izinli_tarihler).isoformat(),
+    max_date=max(izinli_tarihler).isoformat(),
+    allowed_dates=[tarih.isoformat() for tarih in izinli_tarihler],
   )
 
 
@@ -1100,7 +1113,7 @@ def aktiviteler_sayfasi():
   koruma = sayfa_koruma()
   if koruma:
     return koruma
-  return render_template_string(HTML_BULUSMA)
+  return redirect("/son-not")
 
 
 @app.route("/soru")
@@ -1126,18 +1139,13 @@ def tarih_secim_al():
   if api_engel:
     return api_engel
 
-  from datetime import date
-
   try:
     veri = request.get_json(force=True, silent=True) or {}
     tarih_str = str(veri.get("tarih", "")).strip()
     secilen = date.fromisoformat(tarih_str)
-    bugun = date.today()
-    max_tarih = bugun.replace(day=20)
-    if bugun > max_tarih:
-      max_tarih = bugun
-    if secilen < bugun or secilen > max_tarih:
-      return jsonify({"ok": False, "hata": "ayın 20'sine kadar bir gün seç."}), 400
+    izinli_tarihler = set(izin_tarih_araligi())
+    if secilen not in izinli_tarihler:
+      return jsonify({"ok": False, "hata": "yalnızca 9, 10, 12 veya 13 temmuz seçebilirsin."}), 400
 
     ip = gercek_ip_al(request)
     mesaj = (
