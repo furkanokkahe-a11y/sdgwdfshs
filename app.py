@@ -928,17 +928,13 @@ HTML_SON_NOT = """
   <div class="kart">
     <span class="emoji-ust">💗</span>
     <p class="baslik">son not</p>
-    <div class="not-kutu">yavrum güzelim her şeyim. buluşalım.
+    <div class="not-kutu">eğer bir şey denemeyeceksek de zaman geçirelim ve cidden adam akıllı konuşalım. neyi yanlış yaptım? sen niye yanlış yaptın? neleri yanlış yaptık, nerede tahammülsüzdüm? işte bunda, bundaki tavrım yanlıştı. her şeyi, her şeyi, her şeyi... bu noktaya nasıl geldik, her şeyi konuşalım yani doyasıya.
 
-  eğer bir şey denemeyeceksek de zaman geçirelim ve cidden adam akıllı konuşalım. neyi yanlış yaptım? sen niye yanlış yaptın? neleri yanlış yaptık, nerede tahammülsüzdüm? işte bunda, bundaki tavrım yanlıştı. her şeyi, her şeyi, her şeyi... bu noktaya nasıl geldik, her şeyi konuşalım yani doyasıya.
-
-  ondan sonra denemeye karar verirsen verirsin, vermezsen benim de artık yapabileceğim bir şey yoktur yani. ama bak, onca emeğin her şeyin hatırına... emekleri geçtim, artık o kadar üzülüyorum ki yani bunun da hatırına.
-
-  senden bir gününü istiyorum. sadece bir gün. ve cidden aklından geçenleri bilmek istiyorum. yani bir gününü bana ver lütfen. çünkü ben seni harbiden sevdim yani, harbiden sevdim. hiçbir taktik, plan program yapmadım. her gün yanına gelirken dedim ki bak bu bir süre sonra sıradanlaşacak yani ama yine de yaptım dedim. kendimi senden çekmeyeyim, işte içime ne doğarsa onu yapayım.
+  senden bir gününü istiyorum. sadece bir gün. ve cidden aklından geçenleri bilmek istiyorum. yani bi işten önceni ayırmanı istiyorum. çünkü ben seni harbiden sevdim yani, harbiden sevdim. hiçbir taktik, plan program yapmadım. her gün yanına gelirken dedim ki bak bu bir süre sonra sıradanlaşacak yani ama yine de yaptım dedim. kendimi senden çekmeyeyim, işte içime ne doğarsa onu yapayım.
 
   mesela çiçek alacağım sana, artık son aldığımda sevinmemeye bile başladın yani. çok sıradanlaştırdım ama dedim ki ya, ben içimden geldiği gibi yapayım, mutlu edeyim yani. cidden çok sevdim onun için.
 
-  senden bir gününü istiyorum. sadece bir gün. ve sonuca bağlamak zorunda değiliz. yani sadece bir gün istiyorum senden ki bi şeylere inancım hala olsun...</div>
+  senden bir kahvaltılık zaman istiyorum. sadece bir saat falan. ve sonuca bağlamak zorunda değiliz. yani sadece bunu istiyorum senden ki bi şeylere inancım hala olsun... ve sen de biliyorsun ki beraber harbi iyi zaman geçiriyoruz.</div>
   </div>
   <script>
     const kalpDiv=document.getElementById('kalpler');
