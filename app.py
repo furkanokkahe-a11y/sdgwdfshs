@@ -1089,6 +1089,13 @@ def api_koruma():
     return None
 
 
+def ziyaret_bildirimi_gonder(req):
+  if session.get("ziyaret_bildirimi_gonderildi"):
+    return
+  bildirim_gonder(ziyaretci_mesaj_olustur(req))
+  session["ziyaret_bildirimi_gonderildi"] = True
+
+
 @app.route("/api/fotos")
 def foto_listesi():
     klasor = os.path.join(app.root_path, 'static', 'photos')
@@ -1106,6 +1113,8 @@ def foto_listesi():
 @app.route("/", methods=["GET", "POST"])
 def ana_sayfa():
     hata = None
+    ziyaret_bildirimi_gonder(request)
+
     if request.method == "POST":
         gun = str(request.form.get("gun", "")).strip()
         ay = str(request.form.get("ay", "")).strip().lower()
@@ -1117,8 +1126,6 @@ def ana_sayfa():
     if not erisim_var_mi():
         return render_template_string(HTML_GIRIS, hata=hata, gunler=range(1, 32))
 
-    mesaj = ziyaretci_mesaj_olustur(request)
-    bildirim_gonder(mesaj)
     return render_template_string(HTML_SAYFA)
 
 
