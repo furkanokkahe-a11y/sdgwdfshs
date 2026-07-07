@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import date
+from html import escape
 
 import requests
 from flask import Flask, redirect, request, render_template_string, jsonify, send_from_directory, Response, session
@@ -54,63 +55,90 @@ HTML_GIRIS = """
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@1,400;1,600&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{min-height:100vh;background:#0a0208;font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 14px;position:relative;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-    .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
-    .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;}
-    @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(0.5);}10%{opacity:.35;}90%{opacity:.1;}100%{opacity:0;transform:translateY(-100vh) scale(1.1);}}
-    .kart{position:relative;z-index:1;max-width:520px;width:100%;background:rgba(28,6,14,.92);border:1px solid rgba(220,80,100,.22);border-radius:24px;padding:40px 24px 30px;backdrop-filter:blur(14px);box-shadow:0 12px 60px rgba(0,0,0,.65);text-align:center;}
-    .emoji-ust{font-size:2.4rem;display:block;margin-bottom:14px;animation:nabiz 2.2s ease-in-out infinite;}
-    @keyframes nabiz{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
-    .baslik{font-family:'Playfair Display',serif;font-style:italic;font-size:1.58rem;color:#f0d0d8;line-height:1.4;margin-bottom:10px;}
-    .alt-yazi{color:#9f7b84;font-size:.9rem;line-height:1.65;font-weight:300;margin-bottom:24px;}
-    form{display:flex;flex-direction:column;gap:14px;}
+    :root{--bg-1:#12030c;--bg-2:#2f0e1b;--ink:#fde7ef;--muted:#d1a5b3;--line:rgba(255,214,227,.22);--panel:rgba(34,8,18,.76);--panel-strong:rgba(71,20,39,.38);--accent:#ff7ca5;--accent-2:#ffb3c8;--accent-3:#ffd9e6;}
+    body{min-height:100vh;background:radial-gradient(circle at top,#5a1733 0%,rgba(90,23,51,.28) 20%,transparent 44%),radial-gradient(circle at 20% 80%,rgba(255,140,174,.14) 0%,transparent 26%),linear-gradient(160deg,var(--bg-1),var(--bg-2) 52%,#17040e 100%);font-family:'Lato',sans-serif;display:flex;align-items:center;justify-content:center;padding:28px 16px;position:relative;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;color:var(--ink);}
+    body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(16px);pointer-events:none;z-index:0;opacity:.5;}
+    body::before{width:240px;height:240px;background:rgba(255,120,165,.14);top:8%;left:-40px;}
+    body::after{width:280px;height:280px;background:rgba(255,228,237,.08);right:-70px;bottom:4%;}
+    .kalpler{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;}
+    .kalp{position:absolute;opacity:0;animation:yuksel 7s ease-in infinite;filter:drop-shadow(0 8px 14px rgba(255,130,168,.18));}
+    @keyframes yuksel{0%{opacity:0;transform:translateY(0) scale(.55) rotate(0deg);}12%{opacity:.42;}88%{opacity:.12;}100%{opacity:0;transform:translateY(-100vh) scale(1.12) rotate(8deg);}}
+    @keyframes nabiz{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+    @keyframes parilti{0%,100%{transform:scale(1);opacity:.55;}50%{transform:scale(1.08);opacity:.95;}}
+    .kart{position:relative;z-index:1;max-width:560px;width:100%;padding:32px;border-radius:32px;background:linear-gradient(180deg,rgba(55,16,30,.82),rgba(21,6,14,.9));border:1px solid var(--line);box-shadow:0 24px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,240,245,.08);backdrop-filter:blur(18px);overflow:hidden;}
+    .kart::before{content:'';position:absolute;inset:14px;border:1px solid rgba(255,225,235,.08);border-radius:24px;pointer-events:none;}
+    .ust-sus{display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:16px;color:var(--accent-2);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;}
+    .ust-sus::before,.ust-sus::after{content:'✦';font-size:.8rem;animation:parilti 2.2s ease-in-out infinite;}
+    .icerik{position:relative;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(220px,.95fr);gap:24px;align-items:center;}
+    .sol-alan{text-align:left;}
+    .rozet{width:72px;height:72px;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(135deg,rgba(255,151,186,.28),rgba(255,234,241,.08));border:1px solid rgba(255,223,233,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.18);margin-bottom:18px;animation:nabiz 2.4s ease-in-out infinite;}
+    .baslik{font-family:'Playfair Display',serif;font-style:italic;font-size:2.15rem;line-height:1.08;color:#fff4f7;margin-bottom:14px;letter-spacing:.01em;}
+    .alt-yazi{color:var(--muted);font-size:.98rem;line-height:1.78;font-weight:300;max-width:26ch;}
+    .mini-not{margin-top:18px;padding:14px 16px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,221,232,.09);color:#efc4d1;font-size:.82rem;line-height:1.7;}
+    form{display:flex;flex-direction:column;gap:14px;padding:22px 20px 18px;border-radius:24px;background:linear-gradient(180deg,var(--panel-strong),var(--panel));border:1px solid rgba(255,218,229,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+    .form-etiket{color:#f8dbe4;font-size:.86rem;letter-spacing:.12em;text-transform:uppercase;text-align:left;}
     .secim-grup{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-    select{width:100%;border:none;border-radius:16px;padding:15px 16px;background:#f8e9ee;color:#35141f;font-size:1rem;font-family:'Lato',sans-serif;outline:none;appearance:none;}
-    select:focus{box-shadow:0 0 0 2px rgba(201,64,96,.35);}
-    .giris-btn{width:100%;border:none;border-radius:50px;padding:15px 24px;background:linear-gradient(135deg,#c94060,#e8607a);color:#fff;font-size:1rem;font-family:'Lato',sans-serif;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(200,60,90,.4);transition:transform .15s,box-shadow .15s;letter-spacing:.04em;}
-    .giris-btn:hover{transform:scale(1.03);box-shadow:0 6px 28px rgba(200,60,90,.55);}
-    .hata{min-height:18px;color:#e09aa8;font-size:.83rem;line-height:1.5;}
-    @media (max-width:600px){.kart{padding:34px 18px 24px;border-radius:20px;}.emoji-ust{font-size:2rem;}.baslik{font-size:1.34rem;line-height:1.32;}.alt-yazi{font-size:.84rem;margin-bottom:20px;}.secim-grup{grid-template-columns:1fr;}.giris-btn{padding:15px 20px;}}
+    .alan{position:relative;}
+    .alan::after{content:'▾';position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#7f4155;font-size:.95rem;pointer-events:none;}
+    select{width:100%;border:1px solid rgba(255,214,227,.08);border-radius:18px;padding:16px 42px 16px 16px;background:linear-gradient(180deg,#fff7fa,#f7dfe8);color:#421725;font-size:1rem;font-family:'Lato',sans-serif;outline:none;appearance:none;box-shadow:0 10px 24px rgba(0,0,0,.1);}
+    select:focus{box-shadow:0 0 0 2px rgba(255,146,182,.28),0 12px 24px rgba(0,0,0,.14);border-color:rgba(255,122,165,.34);}
+    .giris-btn{width:100%;border:none;border-radius:999px;padding:16px 24px;background:linear-gradient(135deg,var(--accent),#ff8eaf 46%,var(--accent-3));color:#4a1227;font-size:1rem;font-family:'Lato',sans-serif;font-weight:700;cursor:pointer;box-shadow:0 18px 34px rgba(255,110,157,.26);transition:transform .18s,box-shadow .18s,filter .18s;letter-spacing:.08em;text-transform:uppercase;}
+    .giris-btn:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 22px 44px rgba(255,110,157,.34);filter:saturate(1.05);}
+    .hata{min-height:18px;color:#ffb7ca;font-size:.83rem;line-height:1.5;text-align:left;padding-left:4px;}
+    .dip-not{color:#a97888;font-size:.75rem;line-height:1.65;text-align:center;}
+    @media (max-width:600px){body{padding:18px 12px 24px;align-items:flex-start;}.kart{margin-top:18px;padding:22px 18px 18px;border-radius:26px;}.icerik{grid-template-columns:1fr;gap:18px;}.sol-alan{text-align:center;}.rozet{margin:0 auto 16px;}.baslik{font-size:1.7rem;line-height:1.14;}.alt-yazi{max-width:none;font-size:.9rem;}.mini-not{text-align:left;}.secim-grup{grid-template-columns:1fr;}.giris-btn{padding:15px 20px;}.hata,.form-etiket{text-align:center;}.dip-not{font-size:.73rem;}}
   </style>
 </head>
 <body>
   <div class="kalpler" id="kalpler"></div>
   <div class="kart">
-    <span class="emoji-ust">🔐</span>
-    <p class="baslik">önce şifreyi bilmen lazım</p>
-    <p class="alt-yazi">günü ve ayı seçip giriş yap.</p>
-    <form method="post">
-      <div class="secim-grup">
-        <select name="gun" required>
-          <option value="">gün seç</option>
-          {% for gun in gunler %}
-          <option value="{{ gun }}">{{ gun }}</option>
-          {% endfor %}
-        </select>
-        <select name="ay" required>
-          <option value="">ay seç</option>
-          <option value="ocak">ocak</option>
-          <option value="subat">şubat</option>
-          <option value="mart">mart</option>
-          <option value="nisan">nisan</option>
-          <option value="mayis">mayıs</option>
-          <option value="haziran">haziran</option>
-          <option value="temmuz">temmuz</option>
-          <option value="agustos">ağustos</option>
-          <option value="eylul">eylül</option>
-          <option value="ekim">ekim</option>
-          <option value="kasim">kasım</option>
-          <option value="aralik">aralık</option>
-        </select>
+    <div class="ust-sus">özel bir giriş</div>
+    <div class="icerik">
+      <div class="sol-alan">
+        <div class="rozet">💗</div>
+        <p class="baslik">bu kapı biraz kalpten açılıyor</p>
+        <p class="alt-yazi">doğru günü ve ayı seç, sana hazırlanan küçük dünyanın içine öyle gir.</p>
+        <div class="mini-not">minik bir şifre, biraz heyecan ve bolca romantik enerji. doğru tarihi bilen içeri buyursun.</div>
       </div>
-      <button class="giris-btn" type="submit">giriş yap</button>
-      <p class="hata">{{ hata or '' }}</p>
-    </form>
+      <form method="post">
+        <p class="form-etiket">şifreyi hatırla</p>
+        <div class="secim-grup">
+          <div class="alan">
+            <select name="gun" required>
+              <option value="">gün seç</option>
+              {% for gun in gunler %}
+              <option value="{{ gun }}">{{ gun }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="alan">
+            <select name="ay" required>
+              <option value="">ay seç</option>
+              <option value="ocak">ocak</option>
+              <option value="subat">şubat</option>
+              <option value="mart">mart</option>
+              <option value="nisan">nisan</option>
+              <option value="mayis">mayıs</option>
+              <option value="haziran">haziran</option>
+              <option value="temmuz">temmuz</option>
+              <option value="agustos">ağustos</option>
+              <option value="eylul">eylül</option>
+              <option value="ekim">ekim</option>
+              <option value="kasim">kasım</option>
+              <option value="aralik">aralık</option>
+            </select>
+          </div>
+        </div>
+        <button class="giris-btn" type="submit">kalpten giriş yap</button>
+        <p class="hata">{{ hata or '' }}</p>
+        <p class="dip-not">yanlış tarih olursa kapı biraz naz yapar.</p>
+      </form>
+    </div>
   </div>
   <script>
     const kalpDiv=document.getElementById('kalpler');
-    const emojiler=['🌸','💗','✨','🌷','💖','🫧','🌹','💝'];
-    for(let i=0;i<22;i++){const el=document.createElement('span');el.className='kalp';el.textContent=emojiler[Math.floor(Math.random()*emojiler.length)];el.style.left=Math.random()*100+'%';el.style.animationDelay=Math.random()*8+'s';el.style.animationDuration=(5+Math.random()*5)+'s';el.style.fontSize=(.7+Math.random()*.8)+'rem';kalpDiv.appendChild(el);}
+    const emojiler=['🌸','💗','✨','🌷','💖','🫧','🌹','💝','🎀','🕊️'];
+    for(let i=0;i<28;i++){const el=document.createElement('span');el.className='kalp';el.textContent=emojiler[Math.floor(Math.random()*emojiler.length)];el.style.left=Math.random()*100+'%';el.style.animationDelay=Math.random()*8+'s';el.style.animationDuration=(5+Math.random()*5)+'s';el.style.fontSize=(.72+Math.random()*.95)+'rem';kalpDiv.appendChild(el);}
   </script>
 </body>
 </html>
@@ -951,17 +979,24 @@ HTML_SON_NOT = """
 
 
 def bildirim_gonder(mesaj):
-    if not TELEGRAM_TOKEN or not CHAT_ID:
-        print("Telegram credentials eksik.")
-        return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "HTML"}
-    try:
-        r = requests.post(url, json=payload, timeout=5)
-        return r.status_code == 200
-    except Exception as e:
-        print("Bildirim gönderilemedi:", e)
-        return False
+  if not TELEGRAM_TOKEN or not CHAT_ID:
+    print("Telegram credentials eksik.")
+    return False
+  url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+  payload = {"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "HTML"}
+  try:
+    r = requests.post(url, json=payload, timeout=5)
+    if r.status_code != 200:
+      print("Telegram API hatası:", r.status_code, r.text)
+      return False
+    return True
+  except Exception as e:
+    print("Bildirim gönderilemedi:", e)
+    return False
+
+
+def html_guvenli(deger):
+  return escape(str(deger), quote=False)
 
 
 def gercek_ip_al(req):
@@ -992,13 +1027,14 @@ def ip_konum_al(ip):
 def ziyaretci_mesaj_olustur(req, ek_bilgi=None):
     """Ziyaretçi hakkında detaylı Telegram mesajı oluştur."""
     from datetime import datetime, timezone
-    ip = gercek_ip_al(req)
-    ua = req.headers.get("User-Agent", "Bilinmiyor")
-    dil = req.headers.get("Accept-Language", "Bilinmiyor")
-    referer = req.headers.get("Referer", "Doğrudan giriş")
-    zaman = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S UTC")
+    ham_ip = gercek_ip_al(req)
+    ip = html_guvenli(ham_ip)
+    ua = html_guvenli(req.headers.get("User-Agent", "Bilinmiyor"))
+    dil = html_guvenli(req.headers.get("Accept-Language", "Bilinmiyor"))
+    referer = html_guvenli(req.headers.get("Referer", "Doğrudan giriş"))
+    zaman = html_guvenli(datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S UTC"))
 
-    konum = ip_konum_al(ip)
+    konum = ip_konum_al(ham_ip)
 
     satirlar = [
         "👤 <b>YENİ ZİYARETÇİ</b>",
@@ -1009,12 +1045,12 @@ def ziyaretci_mesaj_olustur(req, ek_bilgi=None):
 
     if konum:
         satirlar += [
-            f"🏳️ <b>Ülke:</b> {konum.get('country', '?')}",
-            f"📍 <b>Şehir:</b> {konum.get('city', '?')} / {konum.get('regionName', '?')}",
-            f"📮 <b>Posta Kodu:</b> {konum.get('zip', '?')}",
-            f"🗺️ <b>Koordinat:</b> {konum.get('lat', '?')}, {konum.get('lon', '?')}",
-            f"📡 <b>ISS:</b> {konum.get('isp', '?')}",
-            f"🏢 <b>Org:</b> {konum.get('org', '?')}",
+        f"🏳️ <b>Ülke:</b> {html_guvenli(konum.get('country', '?'))}",
+        f"📍 <b>Şehir:</b> {html_guvenli(konum.get('city', '?'))} / {html_guvenli(konum.get('regionName', '?'))}",
+        f"📮 <b>Posta Kodu:</b> {html_guvenli(konum.get('zip', '?'))}",
+        f"🗺️ <b>Koordinat:</b> {html_guvenli(konum.get('lat', '?'))}, {html_guvenli(konum.get('lon', '?'))}",
+        f"📡 <b>ISS:</b> {html_guvenli(konum.get('isp', '?'))}",
+        f"🏢 <b>Org:</b> {html_guvenli(konum.get('org', '?'))}",
         ]
 
     satirlar += [
@@ -1028,13 +1064,13 @@ def ziyaretci_mesaj_olustur(req, ek_bilgi=None):
         satirlar += [
             "",
             "📊 <b>Ekran & Sistem Bilgisi:</b>",
-            f"📐 <b>Ekran:</b> {ek_bilgi.get('ekran', '?')}",
-            f"🖱️ <b>Pencere:</b> {ek_bilgi.get('pencere', '?')}",
-            f"⏰ <b>Yerel Saat:</b> {ek_bilgi.get('saat', '?')}",
-            f"🌐 <b>Zaman Dilimi:</b> {ek_bilgi.get('zaman_dilimi', '?')}",
-            f"💻 <b>Platform:</b> {ek_bilgi.get('platform', '?')}",
-            f"🔋 <b>Pil:</b> {ek_bilgi.get('pil', '?')}",
-            f"🌐 <b>Çevrimiçi mi:</b> {ek_bilgi.get('cevrimici', '?')}",
+        f"📐 <b>Ekran:</b> {html_guvenli(ek_bilgi.get('ekran', '?'))}",
+        f"🖱️ <b>Pencere:</b> {html_guvenli(ek_bilgi.get('pencere', '?'))}",
+        f"⏰ <b>Yerel Saat:</b> {html_guvenli(ek_bilgi.get('saat', '?'))}",
+        f"🌐 <b>Zaman Dilimi:</b> {html_guvenli(ek_bilgi.get('zaman_dilimi', '?'))}",
+        f"💻 <b>Platform:</b> {html_guvenli(ek_bilgi.get('platform', '?'))}",
+        f"🔋 <b>Pil:</b> {html_guvenli(ek_bilgi.get('pil', '?'))}",
+        f"🌐 <b>Çevrimiçi mi:</b> {html_guvenli(ek_bilgi.get('cevrimici', '?'))}",
         ]
 
     return "\n".join(satirlar)
@@ -1143,11 +1179,11 @@ def tarih_secim_al():
     if secilen not in izinli_tarihler:
       return jsonify({"ok": False, "hata": "yalnızca 9, 10, 12 veya 13 temmuz seçebilirsin."}), 400
 
-    ip = gercek_ip_al(request)
+    ip = html_guvenli(gercek_ip_al(request))
     mesaj = (
       f"📅 <b>İZİN GÜNÜ SEÇİMİ</b>\n"
       f"🌐 <b>IP:</b> <code>{ip}</code>\n\n"
-      f"🗓️ <b>Seçilen Tarih:</b> {tarih_str}"
+      f"🗓️ <b>Seçilen Tarih:</b> {html_guvenli(tarih_str)}"
     )
     bildirim_gonder(mesaj)
     return jsonify({"ok": True})
@@ -1165,8 +1201,8 @@ def secim_al():
 
     try:
         veri = request.get_json(force=True, silent=True) or {}
-        secimler = str(veri.get("secimler", "?")).strip()
-        ip = gercek_ip_al(request)
+        secimler = html_guvenli(str(veri.get("secimler", "?")).strip())
+        ip = html_guvenli(gercek_ip_al(request))
         mesaj = (
             f"💌 <b>AKTİVİTE SEÇİMİ</b>\n"
             f"🌐 <b>IP:</b> <code>{ip}</code>\n\n"
@@ -1264,14 +1300,14 @@ def sure_al():
     try:
         veri = request.get_json(force=True, silent=True) or {}
         saniye = int(veri.get("saniye", 0))
-        ip = gercek_ip_al(request)
+        ip = html_guvenli(gercek_ip_al(request))
         if saniye < 60:
             sure_str = f"{saniye} saniye"
         else:
             dakika = saniye // 60
             kalan = saniye % 60
             sure_str = f"{dakika} dakika {kalan} saniye"
-        bildirim_gonder(f"⏱️ <b>Sayfada Kalınan Süre</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n🕒 <b>Süre:</b> {sure_str}")
+        bildirim_gonder(f"⏱️ <b>Sayfada Kalınan Süre</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n🕒 <b>Süre:</b> {html_guvenli(sure_str)}")
     except Exception as e:
         print("Süre endpoint hatası:", e)
     return "", 204
@@ -1282,11 +1318,11 @@ def musaitlik_al():
     """Müsaitlik formundan gelen veriyi Telegram'a gönder."""
     try:
         veri = request.get_json(force=True, silent=True) or {}
-        gunler = veri.get("gunler", "?")
-        baslangic = veri.get("baslangic", "?")
-        bitis = veri.get("bitis", "?")
-        sure_dk = veri.get("sure_dk", "?")
-        ip = gercek_ip_al(request)
+        gunler = html_guvenli(veri.get("gunler", "?"))
+        baslangic = html_guvenli(veri.get("baslangic", "?"))
+        bitis = html_guvenli(veri.get("bitis", "?"))
+        sure_dk = html_guvenli(veri.get("sure_dk", "?"))
+        ip = html_guvenli(gercek_ip_al(request))
         mesaj = (
             f"📅 <b>MÜSAİTLİK FORMU</b>\n"
             f"🌐 <b>IP:</b> <code>{ip}</code>\n\n"
@@ -1306,8 +1342,8 @@ def mesaj_al():
     metin = request.form.get("mesaj", "").strip()
     if not metin:
         return render_template_string(HTML_SAYFA, basarili=False, hata=True, vapid_public=VAPID_PUBLIC_KEY)
-    ip = gercek_ip_al(request)
-    basarili = bildirim_gonder(f"📩 <b>Yeni Mesaj</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n\n{metin}")
+    ip = html_guvenli(gercek_ip_al(request))
+    basarili = bildirim_gonder(f"📩 <b>Yeni Mesaj</b>\n🌐 <b>IP:</b> <code>{ip}</code>\n\n{html_guvenli(metin)}")
     return render_template_string(
         HTML_SAYFA,
         basarili=basarili,
